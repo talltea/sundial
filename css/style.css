@@ -1,0 +1,275 @@
+/* ========================
+   Tokens
+   ======================== */
+:root {
+  --bg-primary: #0f1729;
+  --bg-card: #1c2844;
+  --bg-input: #162038;
+  --accent: #f0a848;
+  --accent-dim: rgba(240, 168, 72, 0.15);
+  --text-primary: #e8eaf6;
+  --text-secondary: #9fa8c7;
+  --text-muted: #5c6788;
+  --border: #2a3a5c;
+  --danger: #ef5350;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: 0.2s ease;
+}
+
+/* ========================
+   Reset & Base
+   ======================== */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  min-height: 100dvh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* ========================
+   Layout
+   ======================== */
+header {
+  text-align: center;
+  padding: 2rem 1rem 1rem;
+}
+
+header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+main {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ========================
+   Search
+   ======================== */
+.search-section {
+  margin-bottom: 1.5rem;
+}
+
+.input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#zipcode {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+#zipcode:focus {
+  border-color: var(--accent);
+}
+
+#zipcode::placeholder {
+  color: var(--text-muted);
+}
+
+#search-btn,
+#custom-search-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg-primary);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+
+#search-btn:hover,
+#custom-search-btn:hover {
+  opacity: 0.85;
+}
+
+#search-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ========================
+   Location & Range Pills
+   ======================== */
+#location-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+#location-name {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.range-pills {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.pill {
+  padding: 0.4rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pill.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ========================
+   Custom Date Range
+   ======================== */
+#custom-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+#custom-range input[type="date"] {
+  padding: 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  color-scheme: dark;
+}
+
+#custom-range span {
+  color: var(--text-muted);
+}
+
+#custom-search-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* ========================
+   Charts
+   ======================== */
+.charts {
+  display: grid;
+  gap: 1rem;
+}
+
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1rem 0.75rem;
+  height: 220px;
+}
+
+.chart-container.chart-tall {
+  height: 260px;
+}
+
+.chart-container h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: calc(100% - 1.8rem) !important;
+}
+
+/* ========================
+   Loading
+   ======================== */
+#loading {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.loading-indicator {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* ========================
+   Error
+   ======================== */
+#error-message {
+  text-align: center;
+  padding: 1rem;
+  color: var(--danger);
+  background: rgba(239, 83, 80, 0.08);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+
+/* ========================
+   Utilities
+   ======================== */
+.hidden {
+  display: none !important;
+}

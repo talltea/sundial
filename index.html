@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f1729">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="Historical weather data at your fingertips">
+  <title>Sundial</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>☀️ Sundial</h1>
+    <p class="tagline">Weather history at your fingertips</p>
+  </header>
+
+  <main>
+    <!-- Search -->
+    <section class="search-section">
+      <form id="search-form">
+        <div class="input-group">
+          <input
+            type="text"
+            id="zipcode"
+            placeholder="Enter ZIP code"
+            pattern="[0-9]{5}"
+            maxlength="5"
+            inputmode="numeric"
+            autocomplete="postal-code"
+            required
+          >
+          <button type="submit" id="search-btn">
+            <span class="btn-text">Search</span>
+            <span class="btn-loading hidden">⏳</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Location & Range Controls -->
+    <section id="location-info" class="hidden">
+      <h2 id="location-name"></h2>
+      <div class="range-pills">
+        <button class="pill active" data-days="7">7 days</button>
+        <button class="pill" data-days="14">14 days</button>
+        <button class="pill" data-days="30">30 days</button>
+        <button class="pill" data-days="custom">Custom</button>
+      </div>
+      <div id="custom-range" class="hidden">
+        <input type="date" id="start-date">
+        <span>to</span>
+        <input type="date" id="end-date">
+        <button id="custom-search-btn">Go</button>
+      </div>
+    </section>
+
+    <!-- Errors -->
+    <section id="error-message" class="hidden">
+      <p id="error-text"></p>
+    </section>
+
+        <!-- Loading -->
+    <section id="loading" class="hidden">
+      <div class="loading-indicator">Loading weather data…</div>
+    </section>
+
+    <!-- Charts -->
+    <section id="charts" class="charts hidden">
+      <div class="chart-container chart-tall">
+        <h3>Temperature</h3>
+        <canvas id="chart-temp"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>UV Index</h3>
+        <canvas id="chart-uv"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Pressure</h3>
+        <canvas id="chart-pressure"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Precipitation</h3>
+        <canvas id="chart-precip"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Humidity &amp; Cloud Cover</h3>
+        <canvas id="chart-humidity"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Wind</h3>
+        <canvas id="chart-wind"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Powered by
+      <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> &
+      <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">Nominatim</a>
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
