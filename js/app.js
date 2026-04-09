@@ -527,12 +527,13 @@ const Sundial = {
 
   seriesLabel(s) {
     const shortName = s.location.name.split(",")[0].trim();
-    return `${shortName} · ${this.shortDate(s.start)}–${this.shortDate(s.end)}`;
+    return `${shortName} · ${this.shortDate(s.start, true)}–${this.shortDate(s.end, true)}`;
   },
 
-  shortDate(iso) {
+  shortDate(iso, withYear = false) {
     const d = new Date(iso + "T12:00:00");
-    return `${d.getMonth() + 1}/${d.getDate()}`;
+    const md = `${d.getMonth() + 1}/${d.getDate()}`;
+    return withYear ? `${md}/${String(d.getFullYear()).slice(-2)}` : md;
   },
 
   /* ==============================================
@@ -824,7 +825,7 @@ const Sundial = {
                 const s = series[ctx.datasetIndex];
                 const iso = s?.data?.daily?.time?.[ctx.dataIndex];
                 if (iso) {
-                  return `${ctx.dataset.label} (${self.shortDate(iso)}): ${valStr}`;
+                  return `${ctx.dataset.label} (${self.shortDate(iso, true)}): ${valStr}`;
                 }
               }
               return `${ctx.dataset.label}: ${valStr}`;
