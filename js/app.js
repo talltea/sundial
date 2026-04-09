@@ -607,15 +607,34 @@ const Sundial = {
     // ---- Temperature ----------------------------
     const tempDatasets = [];
     if (isComparing) {
-      series.forEach((s) => {
+      // Per series: solid high line + dashed low line + translucent fill
+      // between the two, so each series is a readable "envelope".
+      // The low dataset is hidden from the legend (same color+label as high)
+      // but carries _kind metadata so tooltips can label it.
+      series.forEach((s, i) => {
+        const lbl = this.seriesLabel(s);
         tempDatasets.push({
-          label: this.seriesLabel(s),
-          data: pad(s.metrics.tempMean),
+          label: lbl,
+          data: pad(s.metrics.tempMax),
           borderColor: s.color.line,
           backgroundColor: s.color.fill,
+          fill: "+1",
+          tension: 0.35,
+          pointRadius: 2,
+          _seriesIdx: i,
+          _kind: "High",
+        });
+        tempDatasets.push({
+          label: lbl,
+          data: pad(s.metrics.tempMin),
+          borderColor: s.color.line,
+          borderDash: [4, 4],
           fill: false,
           tension: 0.35,
           pointRadius: 2,
+          _seriesIdx: i,
+          _kind: "Low",
+          _hideLegend: true,
         });
       });
     } else {
@@ -811,24 +830,34 @@ const Sundial = {
       plugins: {
         legend: {
           display: legend,
-          labels: { boxWidth: 12, usePointStyle: true },
+          labels: {
+            boxWidth: 12,
+            usePointStyle: true,
+            // Hide datasets explicitly flagged (e.g. the "Low" half of a
+            // temperature envelope — same color/label as its "High" partner).
+            filter: (item, data) =>
+              !data.datasets[item.datasetIndex]?._hideLegend,
+          },
         },
         tooltip: {
           callbacks: {
             label(ctx) {
               const v = ctx.parsed.y;
               const valStr = v != null ? v.toFixed(1) + ySuffix : "--";
+              const ds = ctx.dataset;
+              const kindSuffix = ds._kind ? ` ${ds._kind}` : "";
 
               // In comparison mode with shifted dates, include each series'
               // actual calendar date so overlays are readable.
               if (isComparing && !sameDates && series) {
-                const s = series[ctx.datasetIndex];
+                const seriesIdx = ds._seriesIdx ?? ctx.datasetIndex;
+                const s = series[seriesIdx];
                 const iso = s?.data?.daily?.time?.[ctx.dataIndex];
                 if (iso) {
-                  return `${ctx.dataset.label} (${self.shortDate(iso, true)}): ${valStr}`;
+                  return `${ds.label} (${self.shortDate(iso, true)})${kindSuffix}: ${valStr}`;
                 }
               }
-              return `${ctx.dataset.label}: ${valStr}`;
+              return `${ds.label}${kindSuffix}: ${valStr}`;
             },
           },
         },
