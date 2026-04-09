@@ -58,6 +58,33 @@
       </div>
     </section>
 
+    <!-- Comparison -->
+    <section id="comparison-section" class="hidden">
+      <div id="series-chips" class="series-chips"></div>
+      <button id="toggle-add-btn" type="button" class="add-cmp-btn">
+        + Add comparison
+      </button>
+      <div id="add-comparison-form" class="hidden">
+        <div class="cmp-row">
+          <input
+            type="text"
+            id="cmp-zip"
+            placeholder="ZIP"
+            pattern="[0-9]{5}"
+            maxlength="5"
+            inputmode="numeric"
+          >
+          <input type="date" id="cmp-start">
+          <span>to</span>
+          <input type="date" id="cmp-end">
+        </div>
+        <div class="cmp-actions">
+          <button type="button" id="cmp-cancel-btn" class="btn-ghost">Cancel</button>
+          <button type="button" id="cmp-add-btn">Add</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Errors -->
     <section id="error-message" class="hidden">
       <p id="error-text"></p>

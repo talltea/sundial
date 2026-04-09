@@ -209,6 +209,159 @@ footer {
 }
 
 /* ========================
+   Comparison Section
+   ======================== */
+#comparison-section {
+  margin-bottom: 1.5rem;
+}
+
+.series-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.series-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.series-chip .chip-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.series-chip .chip-label {
+  white-space: nowrap;
+}
+
+.series-chip .chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  transition: color var(--transition);
+}
+
+.series-chip .chip-remove:hover {
+  color: var(--danger);
+}
+
+.add-cmp-btn {
+  display: block;
+  margin: 0 auto;
+  padding: 0.4rem 1rem;
+  border: 1.5px dashed var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.add-cmp-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#add-comparison-form {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.cmp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cmp-row input[type="text"] {
+  width: 5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.cmp-row input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cmp-row input[type="date"] {
+  padding: 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  color-scheme: dark;
+}
+
+.cmp-row span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.cmp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.cmp-actions button {
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+
+#cmp-add-btn {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+#cmp-add-btn:hover {
+  opacity: 0.85;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border) !important;
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+}
+
+/* ========================
    Charts
    ======================== */
 .charts {
