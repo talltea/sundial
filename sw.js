@@ -1,10 +1,12 @@
-const CACHE_NAME = "sundial-v1";
+const CACHE_NAME = "sundial-v2";
 
 const STATIC_ASSETS = [
   "./",
   "./index.html",
+  "./radar.html",
   "./css/style.css",
   "./js/app.js",
+  "./js/radar.js",
   "./manifest.json",
 ];
 
