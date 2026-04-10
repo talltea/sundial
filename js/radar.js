@@ -6,7 +6,8 @@ const Radar = {
 
   // ---- State ---------------------------------
   map: null,
-  radarLayers: [],   // { time, layer } for each frame
+  radarFrames: [],   // { time, url } for each frame
+  activeLayer: null,
   currentFrame: 0,
   playing: false,
   playInterval: null,
@@ -127,9 +128,12 @@ const Radar = {
       if (!res.ok) throw new Error("Failed to load radar data");
       const data = await res.json();
 
-      // Clear existing layers
-      this.radarLayers.forEach((f) => this.map.removeLayer(f.layer));
-      this.radarLayers = [];
+      // Clear existing layer
+      if (this.activeLayer) {
+        this.map.removeLayer(this.activeLayer);
+        this.activeLayer = null;
+      }
+      this.radarFrames = [];
 
       // Past frames + nowcast
       const frames = [
@@ -142,18 +146,14 @@ const Radar = {
         return;
       }
 
-      frames.forEach((frame) => {
-        const layer = L.tileLayer(
-          `${data.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`,
-          { opacity: 0, zIndex: 5, maxNativeZoom: 7, maxZoom: 7 }
-        );
-        layer.addTo(this.map);
-        this.radarLayers.push({ time: frame.time, layer });
-      });
+      this.radarFrames = frames.map((frame) => ({
+        time: frame.time,
+        url: `${data.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`,
+      }));
 
       // Show the last past frame by default
       const lastPastIdx = (data.radar?.past?.length || 1) - 1;
-      this.currentFrame = Math.min(lastPastIdx, this.radarLayers.length - 1);
+      this.currentFrame = Math.min(lastPastIdx, this.radarFrames.length - 1);
       this.showFrame(this.currentFrame);
     } catch (err) {
       this.el.timestamp.textContent = "Radar unavailable";
@@ -162,15 +162,24 @@ const Radar = {
   },
 
   showFrame(idx) {
-    this.radarLayers.forEach((f, i) => {
-      f.layer.setOpacity(i === idx ? 0.6 : 0);
+    if (this.activeLayer) {
+      this.map.removeLayer(this.activeLayer);
+    }
+    const frame = this.radarFrames[idx];
+    if (!frame) return;
+    this.activeLayer = L.tileLayer(frame.url, {
+      opacity: 0.6,
+      zIndex: 5,
+      maxNativeZoom: 7,
+      maxZoom: 7,
     });
+    this.activeLayer.addTo(this.map);
     this.currentFrame = idx;
     this.updateTimestamp();
   },
 
   updateTimestamp() {
-    const frame = this.radarLayers[this.currentFrame];
+    const frame = this.radarFrames[this.currentFrame];
     if (!frame) return;
     const d = new Date(frame.time * 1000);
     this.el.timestamp.textContent = d.toLocaleString("en-US", {
@@ -186,10 +195,10 @@ const Radar = {
      ============================================== */
 
   stepFrame(dir) {
-    if (!this.radarLayers.length) return;
+    if (!this.radarFrames.length) return;
     let next = this.currentFrame + dir;
-    if (next < 0) next = this.radarLayers.length - 1;
-    if (next >= this.radarLayers.length) next = 0;
+    if (next < 0) next = this.radarFrames.length - 1;
+    if (next >= this.radarFrames.length) next = 0;
     this.showFrame(next);
   },
 
