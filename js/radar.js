@@ -6,11 +6,17 @@ const Radar = {
 
   // ---- State ---------------------------------
   map: null,
-  radarFrames: [],   // { time, url } for each frame
+  radarFrames: [],     // { time, url }
+  layerCache: {},      // idx -> L.tileLayer (preloaded, not on map)
   activeLayer: null,
+  activeIdx: -1,
   currentFrame: 0,
   playing: false,
   playInterval: null,
+  dragging: false,
+  dragDebounce: null,
+
+  MAX_CACHED_LAYERS: 5,
 
   GEOCODE_URL: "https://nominatim.openstreetmap.org/search",
   RAINVIEWER_URL: "https://api.rainviewer.com/public/weather-maps.json",
@@ -37,14 +43,15 @@ const Radar = {
 
   cacheDOM() {
     this.el = {
-      zip:       document.getElementById("radar-zip"),
-      goBtn:     document.getElementById("radar-go-btn"),
-      prevBtn:   document.getElementById("radar-prev"),
-      playBtn:   document.getElementById("radar-play"),
-      nextBtn:   document.getElementById("radar-next"),
-      timestamp: document.getElementById("radar-timestamp"),
-      error:     document.getElementById("radar-error"),
-      errorText: document.getElementById("radar-error-text"),
+      zip:        document.getElementById("radar-zip"),
+      goBtn:      document.getElementById("radar-go-btn"),
+      playBtn:    document.getElementById("radar-play-btn"),
+      slider:     document.getElementById("radar-slider"),
+      timestamp:  document.getElementById("radar-timestamp"),
+      timeStart:  document.getElementById("radar-time-start"),
+      timeEnd:    document.getElementById("radar-time-end"),
+      error:      document.getElementById("radar-error"),
+      errorText:  document.getElementById("radar-error-text"),
     };
   },
 
@@ -53,9 +60,23 @@ const Radar = {
     this.el.zip.addEventListener("keydown", (e) => {
       if (e.key === "Enter") this.goToZip();
     });
-    this.el.prevBtn.addEventListener("click", () => this.stepFrame(-1));
-    this.el.nextBtn.addEventListener("click", () => this.stepFrame(1));
     this.el.playBtn.addEventListener("click", () => this.togglePlay());
+
+    // Slider: debounce during drag to avoid flooding requests
+    this.el.slider.addEventListener("input", () => {
+      this.dragging = true;
+      this.updateTimestamp(parseInt(this.el.slider.value));
+      clearTimeout(this.dragDebounce);
+      this.dragDebounce = setTimeout(() => {
+        this.showFrame(parseInt(this.el.slider.value));
+      }, 150);
+    });
+
+    this.el.slider.addEventListener("change", () => {
+      this.dragging = false;
+      clearTimeout(this.dragDebounce);
+      this.showFrame(parseInt(this.el.slider.value));
+    });
   },
 
   initMap() {
@@ -71,6 +92,9 @@ const Radar = {
       subdomains: "abcd",
       maxZoom: 7,
     }).addTo(this.map);
+
+    // Evict cached layers when zoom/pan changes (tiles no longer valid)
+    this.map.on("zoomend moveend", () => this.evictAllCached());
   },
 
   restoreLocation() {
@@ -128,14 +152,15 @@ const Radar = {
       if (!res.ok) throw new Error("Failed to load radar data");
       const data = await res.json();
 
-      // Clear existing layer
+      // Clear existing
       if (this.activeLayer) {
         this.map.removeLayer(this.activeLayer);
         this.activeLayer = null;
+        this.activeIdx = -1;
       }
+      this.evictAllCached();
       this.radarFrames = [];
 
-      // Past frames + nowcast
       const frames = [
         ...(data.radar?.past || []),
         ...(data.radar?.nowcast || []),
@@ -151,77 +176,145 @@ const Radar = {
         url: `${data.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`,
       }));
 
-      // Show the last past frame by default
+      // Configure slider
+      const maxIdx = this.radarFrames.length - 1;
+      this.el.slider.min = 0;
+      this.el.slider.max = maxIdx;
+
+      // Show range labels
+      this.el.timeStart.textContent = this.formatTime(this.radarFrames[0].time);
+      this.el.timeEnd.textContent = this.formatTime(this.radarFrames[maxIdx].time);
+
+      // Default to last past frame
       const lastPastIdx = (data.radar?.past?.length || 1) - 1;
-      this.currentFrame = Math.min(lastPastIdx, this.radarFrames.length - 1);
-      this.showFrame(this.currentFrame);
+      const startIdx = Math.min(lastPastIdx, maxIdx);
+      this.el.slider.value = startIdx;
+      this.showFrame(startIdx);
     } catch (err) {
       this.el.timestamp.textContent = "Radar unavailable";
       console.warn("Radar load error:", err);
     }
   },
 
-  showFrame(idx) {
-    const frame = this.radarFrames[idx];
-    if (!frame) return;
+  /* ==============================================
+     Frame display & caching
+     ============================================== */
 
-    const oldLayer = this.activeLayer;
-    const newLayer = L.tileLayer(frame.url, {
+  makeLayer(idx) {
+    const frame = this.radarFrames[idx];
+    if (!frame) return null;
+    return L.tileLayer(frame.url, {
       opacity: 0,
       zIndex: 5,
       maxNativeZoom: 7,
       maxZoom: 7,
     });
-    newLayer.addTo(this.map);
-
-    newLayer.once("load", () => {
-      newLayer.setOpacity(0.6);
-      if (oldLayer) this.map.removeLayer(oldLayer);
-    });
-
-    this.activeLayer = newLayer;
-    this.currentFrame = idx;
-    this.updateTimestamp();
   },
 
-  updateTimestamp() {
-    const frame = this.radarFrames[this.currentFrame];
+  showFrame(idx) {
+    if (idx === this.activeIdx) return;
+    const frame = this.radarFrames[idx];
     if (!frame) return;
-    const d = new Date(frame.time * 1000);
-    this.el.timestamp.textContent = d.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
+
+    const oldLayer = this.activeLayer;
+    const oldIdx = this.activeIdx;
+
+    // Use cached layer if available, otherwise create new
+    let newLayer = this.layerCache[idx];
+    let wasCached = !!newLayer;
+    if (!newLayer) {
+      newLayer = this.makeLayer(idx);
+    } else {
+      delete this.layerCache[idx]; // take ownership
+    }
+
+    newLayer.addTo(this.map);
+
+    const reveal = () => {
+      newLayer.setOpacity(0.6);
+      if (oldLayer) this.map.removeLayer(oldLayer);
+    };
+
+    if (wasCached) {
+      // Already has tiles loaded, show immediately
+      reveal();
+    } else {
+      newLayer.once("load", reveal);
+    }
+
+    this.activeLayer = newLayer;
+    this.activeIdx = idx;
+    this.currentFrame = idx;
+    this.el.slider.value = idx;
+    this.updateTimestamp(idx);
+
+    // Preload neighbors (1 ahead, 1 behind)
+    this.preloadFrame(idx + 1);
+    this.preloadFrame(idx - 1);
+
+    // Trim cache
+    this.trimCache(idx);
+  },
+
+  preloadFrame(idx) {
+    if (idx < 0 || idx >= this.radarFrames.length) return;
+    if (idx === this.activeIdx) return;
+    if (this.layerCache[idx]) return; // already cached
+
+    const layer = this.makeLayer(idx);
+    // Add briefly to trigger tile loading, then remove from map
+    // but keep the layer object so tiles stay in browser cache
+    layer.addTo(this.map);
+    layer.once("load", () => {
+      this.map.removeLayer(layer);
+    });
+    this.layerCache[idx] = layer;
+  },
+
+  trimCache(currentIdx) {
+    const keys = Object.keys(this.layerCache).map(Number);
+    if (keys.length <= this.MAX_CACHED_LAYERS) return;
+
+    // Evict farthest from current
+    keys.sort((a, b) => Math.abs(a - currentIdx) - Math.abs(b - currentIdx));
+    const toEvict = keys.slice(this.MAX_CACHED_LAYERS);
+    toEvict.forEach((k) => {
+      const layer = this.layerCache[k];
+      if (layer) this.map.removeLayer(layer);
+      delete this.layerCache[k];
+    });
+  },
+
+  evictAllCached() {
+    Object.keys(this.layerCache).forEach((k) => {
+      const layer = this.layerCache[k];
+      if (layer) this.map.removeLayer(layer);
+      delete this.layerCache[k];
     });
   },
 
   /* ==============================================
-     Playback controls
+     Playback
      ============================================== */
-
-  stepFrame(dir) {
-    if (!this.radarFrames.length) return;
-    let next = this.currentFrame + dir;
-    if (next < 0) next = this.radarFrames.length - 1;
-    if (next >= this.radarFrames.length) next = 0;
-    this.showFrame(next);
-  },
 
   togglePlay() {
     if (this.playing) {
       this.stopPlay();
     } else {
       this.playing = true;
-      this.el.playBtn.textContent = "⏸";
+      this.el.playBtn.innerHTML = "&#9646;&#9646;"; // pause icon
       this.el.playBtn.classList.add("active");
-      this.playInterval = setInterval(() => this.stepFrame(1), 800);
+      this.playInterval = setInterval(() => {
+        let next = this.currentFrame + 1;
+        if (next >= this.radarFrames.length) next = 0;
+        this.showFrame(next);
+      }, 1000);
     }
   },
 
   stopPlay() {
     this.playing = false;
-    this.el.playBtn.textContent = "▶";
+    this.el.playBtn.innerHTML = "&#9654;"; // play icon
     this.el.playBtn.classList.remove("active");
     clearInterval(this.playInterval);
     this.playInterval = null;
@@ -230,6 +323,22 @@ const Radar = {
   /* ==============================================
      UI helpers
      ============================================== */
+
+  updateTimestamp(idx) {
+    const frame = this.radarFrames[idx];
+    if (!frame) return;
+    this.el.timestamp.textContent = this.formatTime(frame.time);
+  },
+
+  formatTime(unix) {
+    const d = new Date(unix * 1000);
+    return d.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  },
 
   showError(msg) {
     this.el.error.classList.remove("hidden");

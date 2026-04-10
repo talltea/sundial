@@ -70,34 +70,104 @@
       opacity: 0.85;
     }
 
-    .playback-controls {
+    /* Timeline bar */
+    .timeline {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+      padding: 0 0.25rem;
+    }
+
+    #radar-play-btn {
+      flex-shrink: 0;
+      width: 2.2rem;
+      height: 2.2rem;
+      border: 1.5px solid var(--border);
+      border-radius: 50%;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+    }
+
+    #radar-play-btn:hover,
+    #radar-play-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .timeline-track {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 0;
+    }
+
+    .timeline-slider-row {
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .playback-controls button {
-      padding: 0.4rem 0.75rem;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 0.9rem;
+    #radar-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      outline: none;
       cursor: pointer;
-      transition: all var(--transition);
     }
 
-    .playback-controls button:hover,
-    .playback-controls button.active {
-      border-color: var(--accent);
-      color: var(--accent);
+    #radar-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg-primary);
+      box-shadow: 0 0 0 2px var(--accent);
+      transition: transform 0.15s ease;
+    }
+
+    #radar-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg-primary);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    #radar-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     #radar-timestamp {
-      color: var(--text-muted);
+      color: var(--text-primary);
       font-size: 0.82rem;
-      min-width: 10rem;
-      text-align: center;
+      font-weight: 500;
+    }
+
+    .timeline-range {
+      color: var(--text-muted);
+      font-size: 0.72rem;
     }
 
     .radar-main {
@@ -145,13 +215,21 @@
         >
         <button type="button" id="radar-go-btn">Go</button>
       </div>
-      <div class="playback-controls">
-        <button type="button" id="radar-prev" title="Previous frame">◀</button>
-        <button type="button" id="radar-play" title="Play/Pause">▶</button>
-        <button type="button" id="radar-next" title="Next frame">▶▶</button>
-        <span id="radar-timestamp"></span>
-      </div>
     </section>
+
+    <div class="timeline">
+      <button type="button" id="radar-play-btn" title="Play/Pause">&#9654;</button>
+      <div class="timeline-track">
+        <div class="timeline-slider-row">
+          <input type="range" id="radar-slider" min="0" max="0" value="0" step="1">
+        </div>
+        <div class="timeline-labels">
+          <span class="timeline-range" id="radar-time-start"></span>
+          <span id="radar-timestamp"></span>
+          <span class="timeline-range" id="radar-time-end"></span>
+        </div>
+      </div>
+    </div>
 
     <section id="radar-error" class="hidden">
       <p id="radar-error-text"></p>
