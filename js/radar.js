@@ -162,18 +162,24 @@ const Radar = {
   },
 
   showFrame(idx) {
-    if (this.activeLayer) {
-      this.map.removeLayer(this.activeLayer);
-    }
     const frame = this.radarFrames[idx];
     if (!frame) return;
-    this.activeLayer = L.tileLayer(frame.url, {
-      opacity: 0.6,
+
+    const oldLayer = this.activeLayer;
+    const newLayer = L.tileLayer(frame.url, {
+      opacity: 0,
       zIndex: 5,
       maxNativeZoom: 7,
       maxZoom: 7,
     });
-    this.activeLayer.addTo(this.map);
+    newLayer.addTo(this.map);
+
+    newLayer.once("load", () => {
+      newLayer.setOpacity(0.6);
+      if (oldLayer) this.map.removeLayer(oldLayer);
+    });
+
+    this.activeLayer = newLayer;
     this.currentFrame = idx;
     this.updateTimestamp();
   },
