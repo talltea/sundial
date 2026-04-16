@@ -47,7 +47,6 @@ const Astro = {
       content:     document.getElementById("astro-content"),
       sunDetails:  document.getElementById("sun-details"),
       moonDetails: document.getElementById("moon-details"),
-      moonCal:     document.getElementById("moon-calendar"),
     };
   },
 
@@ -202,9 +201,8 @@ const Astro = {
       if (results[2]) this.annualData = results[2];
 
       this.renderDaylightHero(todayData);
-      this.renderTodayMoon();
+      this.renderMoon(rangeData);
       this.renderAnnualChart();
-      this.renderMoonCalendar(rangeData);
 
       this.hideLoading();
       this.el.content.classList.remove("hidden");
@@ -270,14 +268,35 @@ const Astro = {
   },
 
   /* ==============================================
-     Rendering – Today's Moon
+     Rendering – Moon (today + upcoming week)
      ============================================== */
 
-  renderTodayMoon() {
+  renderMoon(rangeData) {
     const today = new Date();
     const phase = this.moonPhase(today);
     const { name, emoji } = this.moonPhaseName(phase);
     const illum = this.moonIllumination(phase);
+
+    const todayKey = this.dateStr(today);
+    const daily = rangeData.daily;
+
+    let calendar = "";
+    for (let i = 0; i < daily.time.length; i++) {
+      const dateStr = daily.time[i];
+      const d = new Date(dateStr + "T12:00:00");
+      const p = this.moonPhase(d);
+      const { emoji: dEmoji } = this.moonPhaseName(p);
+      const dIllum = this.moonIllumination(p);
+      const md = `${d.getMonth() + 1}/${d.getDate()}`;
+      const todayClass = dateStr === todayKey ? " md-today" : "";
+
+      calendar +=
+        `<div class="moon-day${todayClass}">` +
+          `<span class="md-icon">${dEmoji}</span>` +
+          `<span class="md-date">${md}</span>` +
+          `<span class="md-pct">${dIllum}%</span>` +
+        `</div>`;
+    }
 
     this.el.moonDetails.innerHTML =
       `<div class="moon-hero">` +
@@ -285,8 +304,7 @@ const Astro = {
         `<span class="moon-phase-name">${name}</span>` +
         `<span class="moon-illumination">${illum}% illuminated</span>` +
       `</div>` +
-      `<div class="astro-row"><span class="label">Phase Angle</span><span class="value">${(phase * 360).toFixed(1)}\u00B0</span></div>` +
-      `<div class="astro-row"><span class="label">Lunar Day</span><span class="value">${(phase * 29.53).toFixed(1)} / 29.5</span></div>`;
+      `<div class="moon-calendar">${calendar}</div>`;
   },
 
   /* ==============================================
@@ -574,33 +592,6 @@ const Astro = {
       },
       plugins: [todayLinePlugin],
     });
-  },
-
-  /* ==============================================
-     Rendering – Moon Calendar
-     ============================================== */
-
-  renderMoonCalendar(rangeData) {
-    const cal = this.el.moonCal;
-    cal.innerHTML = "";
-
-    const daily = rangeData.daily;
-    for (let i = 0; i < daily.time.length; i++) {
-      const date = new Date(daily.time[i] + "T12:00:00");
-      const phase = this.moonPhase(date);
-      const { emoji } = this.moonPhaseName(phase);
-      const illum = this.moonIllumination(phase);
-
-      const md = `${date.getMonth() + 1}/${date.getDate()}`;
-
-      const div = document.createElement("div");
-      div.className = "moon-day";
-      div.innerHTML =
-        `<span class="md-icon">${emoji}</span>` +
-        `<span class="md-date">${md}</span>` +
-        `<span class="md-pct">${illum}%</span>`;
-      cal.appendChild(div);
-    }
   },
 
   /* ==============================================
