@@ -14,7 +14,9 @@ const Tides = {
   stations: null,
   currentStation: null,
   currentLocation: null,
-  days: 2,
+  rangeMode: "default",      // "default" = today ±2 days, "custom" = date inputs
+  customStart: null,         // Date
+  customEnd: null,           // Date
   chart: null,
 
   el: {},
@@ -46,6 +48,10 @@ const Tides = {
       stationName:  document.getElementById("tides-station-name"),
       stationDist:  document.getElementById("tides-station-distance"),
       pills:        document.getElementById("tides-pills"),
+      customRange:  document.getElementById("custom-range"),
+      startDate:    document.getElementById("tides-start-date"),
+      endDate:      document.getElementById("tides-end-date"),
+      customGo:     document.getElementById("custom-search-btn"),
       error:        document.getElementById("tides-error"),
       errorText:    document.getElementById("tides-error-text"),
       loading:      document.getElementById("tides-loading"),
@@ -61,8 +67,10 @@ const Tides = {
     });
 
     this.el.pills.querySelectorAll(".pill").forEach((pill) =>
-      pill.addEventListener("click", () => this.pickDays(pill))
+      pill.addEventListener("click", () => this.pickRange(pill))
     );
+
+    this.el.customGo.addEventListener("click", () => this.applyCustomRange());
   },
 
   restoreSession() {
@@ -147,12 +155,7 @@ const Tides = {
     return `${yyyy}${mm}${dd}`;
   },
 
-  async fetchPredictions(stationId, days) {
-    const begin = new Date();
-    const end = new Date();
-    end.setDate(end.getDate() + days);
-
-    const base = this.PREDICTIONS_URL;
+  async fetchPredictions(stationId, begin, end) {
     const params = new URLSearchParams({
       begin_date: this.dateStr(begin),
       end_date: this.dateStr(end),
@@ -165,18 +168,14 @@ const Tides = {
       interval: "6",
     });
 
-    const res = await fetch(`${base}?${params}`);
+    const res = await fetch(`${this.PREDICTIONS_URL}?${params}`);
     if (!res.ok) throw new Error("Failed to fetch tide predictions");
     const data = await res.json();
     if (data.error) throw new Error(data.error.message || "NOAA API error");
     return data.predictions || [];
   },
 
-  async fetchHiLo(stationId, days) {
-    const begin = new Date();
-    const end = new Date();
-    end.setDate(end.getDate() + days);
-
+  async fetchHiLo(stationId, begin, end) {
     const params = new URLSearchParams({
       begin_date: this.dateStr(begin),
       end_date: this.dateStr(end),
@@ -252,23 +251,81 @@ const Tides = {
     }
   },
 
-  pickDays(pill) {
+  pickRange(pill) {
     this.el.pills.querySelectorAll(".pill").forEach((p) =>
       p.classList.remove("active")
     );
     pill.classList.add("active");
-    this.days = parseInt(pill.dataset.days);
+    const mode = pill.dataset.range;
+
+    if (mode === "custom") {
+      // Seed the inputs with the current default window if empty
+      if (!this.el.startDate.value || !this.el.endDate.value) {
+        const { begin, end } = this.defaultRange();
+        this.el.startDate.value = this.isoDate(begin);
+        this.el.endDate.value   = this.isoDate(end);
+      }
+      this.el.customRange.classList.remove("hidden");
+      // Don't reload yet — wait for Go
+      return;
+    }
+
+    this.el.customRange.classList.add("hidden");
+    this.rangeMode = "default";
     this.loadTides();
+  },
+
+  applyCustomRange() {
+    const s = this.el.startDate.value;
+    const e = this.el.endDate.value;
+    if (!s || !e) {
+      this.showError("Please pick a start and end date.");
+      return;
+    }
+    const start = new Date(s + "T00:00:00");
+    const end   = new Date(e + "T00:00:00");
+    if (end < start) {
+      this.showError("End date must be on or after the start date.");
+      return;
+    }
+    this.hideError();
+    this.rangeMode = "custom";
+    this.customStart = start;
+    this.customEnd   = end;
+    this.loadTides();
+  },
+
+  // Default window: today -2 days through today +2 days (5-day span centered on today).
+  defaultRange() {
+    const begin = new Date();
+    begin.setHours(0, 0, 0, 0);
+    begin.setDate(begin.getDate() - 2);
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    end.setDate(end.getDate() + 2);
+    return { begin, end };
+  },
+
+  // "YYYY-MM-DD" for <input type="date"> values.
+  isoDate(d) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   },
 
   async loadTides() {
     this.hideError();
     this.showLoading();
 
+    const { begin, end } = this.rangeMode === "custom"
+      ? { begin: this.customStart, end: this.customEnd }
+      : this.defaultRange();
+
     try {
       const [predictions, hilo] = await Promise.all([
-        this.fetchPredictions(this.currentStation.id, this.days),
-        this.fetchHiLo(this.currentStation.id, this.days),
+        this.fetchPredictions(this.currentStation.id, begin, end),
+        this.fetchHiLo(this.currentStation.id, begin, end),
       ]);
 
       this.renderChart(predictions, hilo);
@@ -309,10 +366,48 @@ const Tides = {
       },
     ];
 
+    // Index of the label closest to "now" — used by the nowLine plugin.
+    const now = Date.now();
+    let nowIdx = -1;
+    let nowBest = Infinity;
+    for (let i = 0; i < labels.length; i++) {
+      const diff = Math.abs(new Date(labels[i]).getTime() - now);
+      if (diff < nowBest) { nowBest = diff; nowIdx = i; }
+    }
+    // Only draw the marker when "now" falls inside the data range.
+    if (labels.length) {
+      const first = new Date(labels[0]).getTime();
+      const last = new Date(labels[labels.length - 1]).getTime();
+      if (now < first || now > last) nowIdx = -1;
+    }
+
+    const nowLinePlugin = {
+      id: "nowLine",
+      afterDatasetsDraw(chart) {
+        if (nowIdx < 0) return;
+        const { ctx, chartArea: area, scales: { x } } = chart;
+        const xPos = x.getPixelForValue(nowIdx);
+        ctx.save();
+        ctx.strokeStyle = "#ef5350";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(xPos, area.top);
+        ctx.lineTo(xPos, area.bottom);
+        ctx.stroke();
+        ctx.fillStyle = "#ef5350";
+        ctx.font = "600 10px 'Segoe UI', system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText("Now", xPos, area.top + 4);
+        ctx.restore();
+      },
+    };
+
     const self = this;
     this.chart = new Chart(document.getElementById("chart-tides"), {
       type: "line",
       data: { labels, datasets },
+      plugins: [nowLinePlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,

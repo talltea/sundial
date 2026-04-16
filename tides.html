@@ -199,8 +199,15 @@
     </section>
 
     <div class="tides-range-pills hidden" id="tides-pills">
-      <button class="pill active" data-days="2">2 Days</button>
-      <button class="pill" data-days="7">Week</button>
+      <button class="pill active" data-range="default">5 Days</button>
+      <button class="pill" data-range="custom">Custom</button>
+    </div>
+
+    <div id="custom-range" class="hidden">
+      <input type="date" id="tides-start-date">
+      <span>to</span>
+      <input type="date" id="tides-end-date">
+      <button type="button" id="custom-search-btn">Go</button>
     </div>
 
     <section id="tides-error" class="hidden">
