@@ -57,6 +57,7 @@ const Tides = {
       loading:      document.getElementById("tides-loading"),
       charts:       document.getElementById("tides-charts"),
       hiloBody:     document.getElementById("hilo-body"),
+      currentLevel: document.getElementById("tides-current-level"),
     };
   },
 
@@ -391,6 +392,31 @@ const Tides = {
       if (now < first || now > last) nowIdx = -1;
     }
 
+    // Current level: linearly interpolate between the bracketing predictions.
+    // Also derive rising/falling from the slope at that point.
+    let currentLevel = null;
+    let currentTrend = null; // "rising" | "falling"
+    if (nowIdx >= 0) {
+      for (let i = 1; i < labels.length; i++) {
+        const t0 = new Date(labels[i - 1]).getTime();
+        const t1 = new Date(labels[i]).getTime();
+        if (now >= t0 && now <= t1) {
+          const frac = t1 === t0 ? 0 : (now - t0) / (t1 - t0);
+          currentLevel = values[i - 1] + frac * (values[i] - values[i - 1]);
+          currentTrend = values[i] > values[i - 1] ? "rising" : "falling";
+          break;
+        }
+      }
+    }
+
+    if (currentLevel != null) {
+      const arrow = currentTrend === "rising" ? "\u2191" : "\u2193";
+      this.el.currentLevel.textContent =
+        `Now: ${currentLevel.toFixed(2)} ft ${arrow} ${currentTrend}`;
+    } else {
+      this.el.currentLevel.textContent = "";
+    }
+
     const nowLinePlugin = {
       id: "nowLine",
       afterDatasetsDraw(chart) {
@@ -413,11 +439,30 @@ const Tides = {
       },
     };
 
+    const levelLinePlugin = {
+      id: "levelLine",
+      // Draw behind the data line so it doesn't obscure it.
+      beforeDatasetsDraw(chart) {
+        if (currentLevel == null) return;
+        const { ctx, chartArea: area, scales: { y } } = chart;
+        const yPos = y.getPixelForValue(currentLevel);
+        ctx.save();
+        ctx.strokeStyle = "rgba(239, 83, 80, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(area.left, yPos);
+        ctx.lineTo(area.right, yPos);
+        ctx.stroke();
+        ctx.restore();
+      },
+    };
+
     const self = this;
     this.chart = new Chart(document.getElementById("chart-tides"), {
       type: "line",
       data: { labels, datasets },
-      plugins: [nowLinePlugin],
+      plugins: [nowLinePlugin, levelLinePlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,

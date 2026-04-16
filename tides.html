@@ -120,6 +120,19 @@
       margin-bottom: 0.5rem;
     }
 
+    .tides-current-level {
+      margin-left: 0.6rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .tides-current-level:empty {
+      display: none;
+    }
+
     .tides-chart-container canvas {
       width: 100% !important;
       height: calc(100% - 1.8rem) !important;
@@ -220,7 +233,7 @@
 
     <section id="tides-charts" class="hidden">
       <div class="tides-chart-container">
-        <h3>Water Level (ft above MLLW)</h3>
+        <h3>Water Level (ft above MLLW)<span id="tides-current-level" class="tides-current-level"></span></h3>
         <canvas id="chart-tides"></canvas>
       </div>
       <table class="hilo-table" id="hilo-table">
