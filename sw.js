@@ -1,4 +1,4 @@
-const CACHE_NAME = "sundial-v5";
+const CACHE_NAME = "sundial-v6";
 
 const STATIC_ASSETS = [
   "./",
@@ -11,6 +11,9 @@ const STATIC_ASSETS = [
   "./js/radar.js",
   "./js/tides.js",
   "./js/astronomy.js",
+  "./js/skymap.js",
+  "./js/data/stars.js",
+  "./js/data/constellations.js",
   "./manifest.json",
 ];
 

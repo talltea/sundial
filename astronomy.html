@@ -248,6 +248,77 @@
       font-size: 0.63rem;
       color: var(--text-secondary);
     }
+
+    /* ---- Night Sky card ---- */
+    .skymap-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .skymap-card h3 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+
+    #skymap-timestamp {
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: none;
+      letter-spacing: 0;
+      margin-left: 0.4rem;
+    }
+
+    .skymap-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.1rem;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .skymap-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+    }
+
+    .skymap-controls input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+
+    #skymap-refresh {
+      padding: 0.35rem 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color var(--transition);
+    }
+
+    #skymap-refresh:hover { border-color: var(--accent); }
+
+    .skymap-wrap {
+      max-width: 500px;
+      margin: 0 auto;
+      aspect-ratio: 1 / 1;
+    }
+
+    .skymap-wrap canvas {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -299,6 +370,18 @@
         </div>
       </div>
 
+      <div class="skymap-card">
+        <h3>Night Sky<span id="skymap-timestamp"></span></h3>
+        <div class="skymap-controls">
+          <label><input type="checkbox" id="skymap-lines" checked> Constellation lines</label>
+          <label><input type="checkbox" id="skymap-labels" checked> Labels</label>
+          <button type="button" id="skymap-refresh">Refresh</button>
+        </div>
+        <div class="skymap-wrap">
+          <canvas id="skymap-canvas"></canvas>
+        </div>
+      </div>
+
       <div class="annual-chart-card">
         <h3>Daylight Through the Year</h3>
         <div class="annual-chart-wrap">
@@ -319,11 +402,18 @@
     <p>
       Powered by
       <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> &
-      <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">Nominatim</a>
+      <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">Nominatim</a>.
+      Star catalog:
+      <a href="https://astronexus.com/hyg" target="_blank" rel="noopener">HYG</a> (CC0).
+      Constellation lines:
+      <a href="https://github.com/ofrohn/d3-celestial" target="_blank" rel="noopener">d3-celestial</a> (BSD-3).
     </p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="js/data/stars.js"></script>
+  <script src="js/data/constellations.js"></script>
+  <script src="js/skymap.js"></script>
   <script src="js/astronomy.js"></script>
 </body>
 </html>

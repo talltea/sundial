@@ -28,4 +28,4 @@ There are no tests, no linter, and no CI configured.
 - **CSS**: Single file (`css/style.css`) using CSS custom properties defined in `:root`. Dark theme only.
 
 ## TODO
-- Some info on stars / planets in the sky?
+- Hourly weather

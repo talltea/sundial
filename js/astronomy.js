@@ -25,6 +25,7 @@ const Astro = {
     this.configChartDefaults();
     this.cacheDOM();
     this.bind();
+    SkyMap.init();
     this.restoreSession();
   },
 
@@ -216,6 +217,15 @@ const Astro = {
 
       this.hideLoading();
       this.el.content.classList.remove("hidden");
+
+      // Must run after content is visible so the canvas wrapper has a
+      // measurable width — otherwise the skymap renders 0×0.
+      SkyMap.draw(
+        this.location.lat,
+        this.location.lon,
+        todayData.utc_offset_seconds,
+        todayData.timezone
+      );
     } catch (err) {
       this.hideLoading();
       this.showError(err.message);
