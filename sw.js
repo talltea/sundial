@@ -1,4 +1,4 @@
-const CACHE_NAME = "sundial-v4";
+const CACHE_NAME = "sundial-v5";
 
 const STATIC_ASSETS = [
   "./",
