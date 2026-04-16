@@ -21,8 +21,13 @@ There are no tests, no linter, and no CI configured.
 - **Single-object app pattern**: All logic lives in the `Sundial` object literal in `js/app.js`. It boots via `Sundial.init()` on DOMContentLoaded.
 - **Series model**: The app supports up to 4 overlaid data series (1 primary + 3 comparisons), each with its own ZIP/date range. Series state is in `Sundial.series[]`.
 - **Two API endpoints**: Open-Meteo forecast API (data within ~90 days) vs. archive API (older data). `buildURL()` picks the right one based on how far back the start date is.
-- **Session persistence**: Primary series location/range is saved to `localStorage` (`sundial_primary` key) and restored on page load.
+- **Session persistence**: The active ZIP/location is shared across all tabs via `localStorage` (`sundial_location` key: `{zip, lat, lon, name}`). Tab-specific state (e.g. weather date range in `sundial_primary`) is stored separately.
 - **Service worker** (`sw.js`): Cache-first for same-origin static assets, network-first with cache fallback for external APIs.
 - **Charts**: 6 Chart.js canvases (temperature, UV, pressure, precipitation, humidity/cloud cover, wind). All chart creation goes through `makeChart()` and `chartOpts()`.
 - **Units**: Hardcoded to US units (Fahrenheit, mph, inches).
 - **CSS**: Single file (`css/style.css`) using CSS custom properties defined in `:root`. Dark theme only.
+
+## TODO
+- moon rise/set times
+- for tides, have a horizontal rule so you can read the current height off the left
+- Some info on stars / planets in the sky?

@@ -73,16 +73,25 @@ const Tides = {
     this.el.customGo.addEventListener("click", () => this.applyCustomRange());
   },
 
-  restoreSession() {
-    const saved = localStorage.getItem("sundial_tides");
-    if (!saved) return;
+  readSharedLocation() {
+    const raw = localStorage.getItem("sundial_location");
+    if (!raw) return null;
     try {
-      const data = JSON.parse(saved);
-      this.el.zip.value = data.zip || "";
-      if (data.zip) this.search();
-    } catch (e) {
-      console.warn("Failed to restore tides session:", e);
-    }
+      const loc = JSON.parse(raw);
+      if (loc?.lat != null && loc?.lon != null) return loc;
+    } catch (e) {}
+    return null;
+  },
+
+  writeSharedLocation(location) {
+    localStorage.setItem("sundial_location", JSON.stringify(location));
+  },
+
+  restoreSession() {
+    const loc = this.readSharedLocation();
+    if (!loc) return;
+    this.el.zip.value = loc.zip || "";
+    this.search();
   },
 
   /* ==============================================
@@ -210,10 +219,11 @@ const Tides = {
     this.showLoading();
 
     try {
-      const [location, _] = await Promise.all([
-        this.geocode(zip),
-        this.loadStations(),
-      ]);
+      const cached = this.readSharedLocation();
+      const locP = cached?.zip === zip
+        ? Promise.resolve(cached)
+        : this.geocode(zip);
+      const [location, _] = await Promise.all([locP, this.loadStations()]);
 
       this.currentLocation = location;
 
@@ -242,7 +252,7 @@ const Tides = {
       this.el.stationInfo.classList.remove("hidden");
       this.el.pills.classList.remove("hidden");
 
-      localStorage.setItem("sundial_tides", JSON.stringify({ zip }));
+      this.writeSharedLocation(location);
 
       await this.loadTides();
     } catch (err) {

@@ -134,55 +134,64 @@ const Sundial = {
     }
   },
 
+  readSharedLocation() {
+    const raw = localStorage.getItem("sundial_location");
+    if (!raw) return null;
+    try {
+      const loc = JSON.parse(raw);
+      if (loc?.lat != null && loc?.lon != null) return loc;
+    } catch (e) {}
+    return null;
+  },
+
+  writeSharedLocation(location) {
+    localStorage.setItem("sundial_location", JSON.stringify(location));
+  },
+
   restoreSession() {
-    const saved = localStorage.getItem("sundial_primary");
-    if (saved) {
+    let location = this.readSharedLocation();
+    let days = "forecast14";
+    let start = null;
+    let end = null;
+
+    const savedPrimary = localStorage.getItem("sundial_primary");
+    if (savedPrimary) {
       try {
-        const p = JSON.parse(saved);
-        this.series = [this.newSeries({
-          isPrimary: true,
-          location: p.location,
-          days: p.days ?? 7,
-          start: p.start,
-          end: p.end,
-        })];
-        this.el.zip.value = p.location.zip || "";
-        this.activatePillForDays(p.days);
-        this.showLocation();
-        this.el.comparison.classList.remove("hidden");
-        this.renderChips();
-        this.fetchSeriesData(this.series[0])
-          .then(() => this.renderCharts())
-          .catch((err) => this.showError(err.message));
-        return;
+        const p = JSON.parse(savedPrimary);
+        // Migrate legacy format that embedded location in sundial_primary
+        if (p.location && !location) {
+          location = p.location;
+          this.writeSharedLocation(location);
+        }
+        if (p.days !== undefined) days = p.days;
+        start = p.start ?? null;
+        end = p.end ?? null;
       } catch (e) {
         console.warn("Failed to restore session:", e);
       }
     }
 
-    // Legacy format: just {location}
-    const legacy = localStorage.getItem("sundial_location");
-    if (!legacy) return;
-    try {
-      const location = JSON.parse(legacy);
-      const { start, end } = this.daysToForecastRange(14);
-      this.series = [this.newSeries({
-        isPrimary: true,
-        location,
-        days: "forecast14",
-        start,
-        end,
-      })];
-      this.el.zip.value = location.zip || "";
-      this.showLocation();
-      this.el.comparison.classList.remove("hidden");
-      this.renderChips();
-      this.fetchSeriesData(this.series[0])
-        .then(() => this.renderCharts())
-        .catch((err) => this.showError(err.message));
-    } catch (e) {
-      console.warn("Failed to restore legacy session:", e);
-    }
+    if (!location) return;
+
+    const range = (start && end)
+      ? { start, end }
+      : this.rangeForDays(days ?? "forecast14");
+
+    this.series = [this.newSeries({
+      isPrimary: true,
+      location,
+      days,
+      start: range.start,
+      end: range.end,
+    })];
+    this.el.zip.value = location.zip || "";
+    this.activatePillForDays(days);
+    this.showLocation();
+    this.el.comparison.classList.remove("hidden");
+    this.renderChips();
+    this.fetchSeriesData(this.series[0])
+      .then(() => this.renderCharts())
+      .catch((err) => this.showError(err.message));
   },
 
   /* ==============================================
@@ -205,8 +214,8 @@ const Sundial = {
   persistPrimary() {
     const s = this.series[0];
     if (!s) return;
+    this.writeSharedLocation(s.location);
     localStorage.setItem("sundial_primary", JSON.stringify({
-      location: s.location,
       days: s.days,
       start: s.start,
       end: s.end,
@@ -338,7 +347,8 @@ const Sundial = {
     this.hideError();
 
     try {
-      const location = await this.geocode(zip);
+      const cached = this.readSharedLocation();
+      const location = cached?.zip === zip ? cached : await this.geocode(zip);
 
       // Preserve current primary range if it exists, otherwise default to forecast14
       const prev = this.series[0];

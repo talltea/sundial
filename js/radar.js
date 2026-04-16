@@ -97,18 +97,25 @@ const Radar = {
     this.map.on("zoomend moveend", () => this.evictAllCached());
   },
 
-  restoreLocation() {
-    const saved = localStorage.getItem("sundial_primary");
-    if (!saved) return;
+  readSharedLocation() {
+    const raw = localStorage.getItem("sundial_location");
+    if (!raw) return null;
     try {
-      const p = JSON.parse(saved);
-      if (p.location?.lat && p.location?.lon) {
-        this.map.setView([p.location.lat, p.location.lon], this.LOCATION_ZOOM);
-        if (p.location.zip) this.el.zip.value = p.location.zip;
-      }
-    } catch (e) {
-      // ignore
-    }
+      const loc = JSON.parse(raw);
+      if (loc?.lat != null && loc?.lon != null) return loc;
+    } catch (e) {}
+    return null;
+  },
+
+  writeSharedLocation(location) {
+    localStorage.setItem("sundial_location", JSON.stringify(location));
+  },
+
+  restoreLocation() {
+    const loc = this.readSharedLocation();
+    if (!loc) return;
+    this.map.setView([loc.lat, loc.lon], this.LOCATION_ZOOM);
+    if (loc.zip) this.el.zip.value = loc.zip;
   },
 
   /* ==============================================
@@ -121,9 +128,12 @@ const Radar = {
     if (!res.ok) throw new Error("Geocoding request failed");
     const data = await res.json();
     if (!data.length) throw new Error("ZIP code not found");
+    const place = data[0];
     return {
-      lat: parseFloat(data[0].lat),
-      lon: parseFloat(data[0].lon),
+      lat: parseFloat(place.lat),
+      lon: parseFloat(place.lon),
+      name: place.display_name.split(",").slice(0, 3).join(",").trim(),
+      zip,
     };
   },
 
@@ -135,8 +145,10 @@ const Radar = {
     }
     this.hideError();
     try {
-      const loc = await this.geocode(zip);
+      const cached = this.readSharedLocation();
+      const loc = cached?.zip === zip ? cached : await this.geocode(zip);
       this.map.setView([loc.lat, loc.lon], this.LOCATION_ZOOM);
+      this.writeSharedLocation(loc);
     } catch (err) {
       this.showError(err.message);
     }

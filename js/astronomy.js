@@ -57,16 +57,25 @@ const Astro = {
     });
   },
 
-  restoreSession() {
-    const saved = localStorage.getItem("sundial_astro");
-    if (!saved) return;
+  readSharedLocation() {
+    const raw = localStorage.getItem("sundial_location");
+    if (!raw) return null;
     try {
-      const data = JSON.parse(saved);
-      this.el.zip.value = data.zip || "";
-      if (data.zip) this.search();
-    } catch (e) {
-      console.warn("Failed to restore astro session:", e);
-    }
+      const loc = JSON.parse(raw);
+      if (loc?.lat != null && loc?.lon != null) return loc;
+    } catch (e) {}
+    return null;
+  },
+
+  writeSharedLocation(location) {
+    localStorage.setItem("sundial_location", JSON.stringify(location));
+  },
+
+  restoreSession() {
+    const loc = this.readSharedLocation();
+    if (!loc) return;
+    this.el.zip.value = loc.zip || "";
+    this.search();
   },
 
   /* ==============================================
@@ -167,13 +176,14 @@ const Astro = {
     this.showLoading();
 
     try {
-      this.location = await this.geocode(zip);
+      const cached = this.readSharedLocation();
+      this.location = cached?.zip === zip ? cached : await this.geocode(zip);
       this.annualData = null;
 
       this.el.location.textContent = this.location.name;
       this.el.location.classList.remove("hidden");
 
-      localStorage.setItem("sundial_astro", JSON.stringify({ zip }));
+      this.writeSharedLocation(this.location);
 
       await this.loadData();
     } catch (err) {
