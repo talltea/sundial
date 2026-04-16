@@ -394,6 +394,81 @@ footer {
 }
 
 /* ========================
+   Hourly strip
+   ======================== */
+.hourly-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 0.25rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.hourly-card h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0.75rem 0.65rem;
+}
+
+.hourly-strip {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 0 0.75rem 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hourly-strip::-webkit-scrollbar {
+  height: 6px;
+}
+.hourly-strip::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.hour-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 0 0 3.4rem;
+  padding: 0.45rem 0.25rem;
+  border-radius: var(--radius-sm);
+  scroll-snap-align: start;
+}
+
+.hour-cell.hc-now {
+  background: var(--accent-dim);
+  border: 1px solid rgba(240, 168, 72, 0.35);
+}
+
+.hour-cell .hc-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.hour-cell .hc-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.hour-cell .hc-temp {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hour-cell .hc-pop {
+  font-size: 0.68rem;
+  color: #64b5f6;
+  min-height: 0.85rem;
+}
+
+/* ========================
    Charts
    ======================== */
 .charts {

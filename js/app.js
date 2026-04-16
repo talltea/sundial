@@ -98,6 +98,8 @@ const Sundial = {
       errorText:       document.getElementById("error-text"),
       charts:          document.getElementById("charts"),
       loading:         document.getElementById("loading"),
+      hourlyCard:      document.getElementById("hourly-card"),
+      hourlyStrip:     document.getElementById("hourly-strip"),
     };
   },
 
@@ -192,6 +194,7 @@ const Sundial = {
     this.fetchSeriesData(this.series[0])
       .then(() => this.renderCharts())
       .catch((err) => this.showError(err.message));
+    this.refreshHourly(location);
   },
 
   /* ==============================================
@@ -376,6 +379,7 @@ const Sundial = {
       await this.fetchSeriesData(primary);
       this.renderChips();
       this.renderCharts();
+      this.refreshHourly(location);
     } catch (err) {
       this.showError(err.message);
     } finally {
@@ -1041,6 +1045,82 @@ const Sundial = {
 
   hideError() {
     this.el.error.classList.add("hidden");
+  },
+
+  /* ==============================================
+     Hourly forecast strip (next 24h)
+     ============================================== */
+
+  async refreshHourly(location) {
+    if (!location) return;
+    try {
+      const url =
+        `${this.FORECAST_URL}?latitude=${location.lat}&longitude=${location.lon}` +
+        `&hourly=temperature_2m,weather_code,precipitation_probability` +
+        `&forecast_hours=24&past_hours=1` +
+        `&${this.UNIT_PARAMS}&timezone=auto`;
+      const data = await this.fetchJSON(url);
+      this.renderHourly(data);
+    } catch (e) {
+      this.el.hourlyCard.classList.add("hidden");
+    }
+  },
+
+  renderHourly(data) {
+    const h = data.hourly;
+    if (!h || !h.time || !h.time.length) {
+      this.el.hourlyCard.classList.add("hidden");
+      return;
+    }
+
+    // Find the index of the hour closest to "now" in the location's timezone.
+    const nowMs = Date.now();
+    let nowIdx = 0;
+    let bestDelta = Infinity;
+    for (let i = 0; i < h.time.length; i++) {
+      const delta = Math.abs(new Date(h.time[i]).getTime() - nowMs);
+      if (delta < bestDelta) { bestDelta = delta; nowIdx = i; }
+    }
+
+    const end = Math.min(h.time.length, nowIdx + 24);
+    let html = "";
+    for (let i = nowIdx; i < end; i++) {
+      const d = new Date(h.time[i]);
+      const label = i === nowIdx
+        ? "Now"
+        : d.toLocaleTimeString("en-US", { hour: "numeric", timeZone: data.timezone });
+      const temp = h.temperature_2m?.[i];
+      const code = h.weather_code?.[i];
+      const pop = h.precipitation_probability?.[i];
+      const nowClass = i === nowIdx ? " hc-now" : "";
+
+      html +=
+        `<div class="hour-cell${nowClass}">` +
+          `<span class="hc-time">${label}</span>` +
+          `<span class="hc-icon">${this.weatherCodeEmoji(code)}</span>` +
+          `<span class="hc-temp">${temp != null ? Math.round(temp) + "\u00b0" : "\u2014"}</span>` +
+          `<span class="hc-pop">${pop != null && pop > 0 ? pop + "%" : ""}</span>` +
+        `</div>`;
+    }
+
+    this.el.hourlyStrip.innerHTML = html;
+    this.el.hourlyCard.classList.remove("hidden");
+  },
+
+  // WMO weather codes → emoji. See https://open-meteo.com/en/docs
+  weatherCodeEmoji(code) {
+    if (code == null) return "\u2014";
+    if (code === 0) return "\u2600\ufe0f";           // clear
+    if (code === 1 || code === 2) return "\u26c5";    // mainly clear / partly cloudy
+    if (code === 3) return "\u2601\ufe0f";            // overcast
+    if (code === 45 || code === 48) return "\ud83c\udf2b\ufe0f"; // fog
+    if (code >= 51 && code <= 57) return "\ud83c\udf26\ufe0f";   // drizzle
+    if (code >= 61 && code <= 67) return "\ud83c\udf27\ufe0f";   // rain
+    if (code >= 71 && code <= 77) return "\ud83c\udf28\ufe0f";   // snow
+    if (code >= 80 && code <= 82) return "\ud83c\udf27\ufe0f";   // rain showers
+    if (code === 85 || code === 86) return "\ud83c\udf28\ufe0f"; // snow showers
+    if (code >= 95) return "\u26c8\ufe0f";            // thunderstorm
+    return "\u2601\ufe0f";
   },
 
   /* ==============================================
