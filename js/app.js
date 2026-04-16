@@ -23,6 +23,7 @@ const Sundial = {
   GEOCODE_URL: "https://nominatim.openstreetmap.org/search",
   FORECAST_URL: "https://api.open-meteo.com/v1/forecast",
   ARCHIVE_URL: "https://archive-api.open-meteo.com/v1/archive",
+  AIR_QUALITY_URL: "https://air-quality-api.open-meteo.com/v1/air-quality",
 
   // ---- Shared query fragments ----------------
   DAILY_PARAMS: [
@@ -41,6 +42,8 @@ const Sundial = {
   ].join(","),
 
   HOURLY_PARAMS: "pressure_msl,relative_humidity_2m,cloud_cover",
+
+  AIR_QUALITY_PARAMS: "us_aqi,pm2_5,pm10",
 
   UNIT_PARAMS:
     "temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch",
@@ -162,11 +165,11 @@ const Sundial = {
     if (!legacy) return;
     try {
       const location = JSON.parse(legacy);
-      const { start, end } = this.daysToRange(7);
+      const { start, end } = this.daysToForecastRange(14);
       this.series = [this.newSeries({
         isPrimary: true,
         location,
-        days: 7,
+        days: "forecast14",
         start,
         end,
       })];
@@ -262,9 +265,31 @@ const Sundial = {
     );
   },
 
+  buildAirQualityURL(location, startDate, endDate) {
+    const { lat, lon } = location;
+    // AQ forecast only extends ~5 days out; cap end date to avoid 400 errors
+    const maxForecast = new Date();
+    maxForecast.setDate(maxForecast.getDate() + 5);
+    const maxStr = this.dateStr(maxForecast);
+    const cappedEnd = endDate > maxStr ? maxStr : endDate;
+    return (
+      `${this.AIR_QUALITY_URL}?latitude=${lat}&longitude=${lon}` +
+      `&start_date=${startDate}&end_date=${cappedEnd}` +
+      `&hourly=${this.AIR_QUALITY_PARAMS}&timezone=auto`
+    );
+  },
+
   async fetchSeriesData(series) {
-    const url = this.buildURL(series.location, series.start, series.end);
-    series.data = await this.fetchJSON(url);
+    const weatherURL = this.buildURL(series.location, series.start, series.end);
+    const aqURL = this.buildAirQualityURL(series.location, series.start, series.end);
+
+    const [weatherData, aqData] = await Promise.all([
+      this.fetchJSON(weatherURL),
+      this.fetchJSON(aqURL).catch(() => null),
+    ]);
+
+    series.data = weatherData;
+    series.airQuality = aqData;
     return series.data;
   },
 
@@ -284,6 +309,20 @@ const Sundial = {
     return { start: this.dateStr(start), end: this.dateStr(end) };
   },
 
+  daysToForecastRange(days) {
+    const start = new Date();
+    const end = new Date();
+    end.setDate(end.getDate() + (days - 1));
+    return { start: this.dateStr(start), end: this.dateStr(end) };
+  },
+
+  rangeForDays(days) {
+    if (typeof days === "string" && days.startsWith("forecast")) {
+      return this.daysToForecastRange(parseInt(days.replace("forecast", "")));
+    }
+    return this.daysToRange(typeof days === "string" ? parseInt(days) : days);
+  },
+
   /* ==============================================
      Event handlers – Primary series
      ============================================== */
@@ -301,12 +340,12 @@ const Sundial = {
     try {
       const location = await this.geocode(zip);
 
-      // Preserve current primary range if it exists, otherwise default to 7d
+      // Preserve current primary range if it exists, otherwise default to forecast14
       const prev = this.series[0];
-      const days = prev?.days ?? 7;
+      const days = prev?.days ?? "forecast14";
       const range = prev && prev.days == null
         ? { start: prev.start, end: prev.end }
-        : this.daysToRange(days);
+        : this.rangeForDays(days);
 
       const comparisons = this.series.slice(1); // keep comparisons
       const primary = this.newSeries({
@@ -346,14 +385,14 @@ const Sundial = {
       const weekAgo = new Date();
       weekAgo.setDate(today.getDate() - 7);
       this.el.endDate.value = this.dateStr(today);
-      this.el.endDate.max = this.dateStr(today);
       this.el.startDate.value = this.dateStr(weekAgo);
       return;
     }
 
     this.el.customRange.classList.add("hidden");
-    const days = parseInt(val);
-    const { start, end } = this.daysToRange(days);
+
+    const days = val.startsWith("forecast") ? val : parseInt(val);
+    const { start, end } = this.rangeForDays(days);
     this.updatePrimary({ days, start, end });
   },
 
@@ -414,7 +453,7 @@ const Sundial = {
         this.el.cmpStart.value = primary.start;
         this.el.cmpEnd.value = primary.end;
       }
-      this.el.cmpEnd.max = this.dateStr(new Date());
+      // No max constraint — allow future dates for forecast comparisons
       this.el.cmpZip.focus();
     } else {
       this.el.addForm.classList.add("hidden");
@@ -560,6 +599,7 @@ const Sundial = {
     series.forEach((s) => {
       const d = s.data.daily;
       const h = s.data.hourly;
+      const aq = s.airQuality?.hourly;
       s.metrics = {
         tempMax: d.temperature_2m_max,
         tempMin: d.temperature_2m_min,
@@ -574,6 +614,9 @@ const Sundial = {
         pressure: this.dailyAverages(d.time, h?.time, h?.pressure_msl),
         humidity: this.dailyAverages(d.time, h?.time, h?.relative_humidity_2m),
         clouds:   this.dailyAverages(d.time, h?.time, h?.cloud_cover),
+        aqi:      this.dailyMax(d.time, aq?.time, aq?.us_aqi),
+        pm25:     this.dailyAverages(d.time, aq?.time, aq?.pm2_5),
+        pm10:     this.dailyAverages(d.time, aq?.time, aq?.pm10),
       };
     });
 
@@ -662,6 +705,50 @@ const Sundial = {
     this.charts.push(
       this.makeChart("chart-temp", "line", labels, tempDatasets,
         this.chartOpts({ ...optsBase, ySuffix: "°", legend: true }))
+    );
+
+    // ---- Air Quality (AQI) -------------------------
+    const aqiDatasets = isComparing
+      ? series.map((s) => ({
+          label: this.seriesLabel(s),
+          data: pad(s.metrics.aqi),
+          borderColor: s.color.line,
+          backgroundColor: s.color.fill,
+          fill: false,
+          tension: 0.35,
+          pointRadius: 2,
+        }))
+      : [
+          {
+            label: "US AQI",
+            data: pad(series[0].metrics.aqi),
+            borderColor: "#f0a848",
+            backgroundColor: series[0].metrics.aqi.map((v) => this.aqiColor(v)),
+            fill: false,
+            tension: 0.35,
+            pointRadius: 3,
+            segment: {
+              borderColor: (ctx) =>
+                this.aqiColor(ctx.p1.parsed.y),
+            },
+          },
+          {
+            label: "PM2.5",
+            data: pad(series[0].metrics.pm25),
+            borderColor: "#e57373",
+            borderDash: [4, 4],
+            fill: false,
+            tension: 0.35,
+            pointRadius: 2,
+            yAxisID: "y1",
+          },
+        ];
+    this.charts.push(
+      this.makeChart("chart-aqi", "line", labels, aqiDatasets,
+        this.chartOpts({
+          ...optsBase, yMin: 0, legend: true,
+          ...(isComparing ? {} : { y1: { suffix: " µg/m³", position: "right" } }),
+        }))
     );
 
     // ---- UV Index --------------------------------
@@ -821,6 +908,7 @@ const Sundial = {
     series,
     isComparing = false,
     sameDates = true,
+    y1,
   } = {}) {
     const self = this;
     return {
@@ -874,6 +962,16 @@ const Sundial = {
             callback: (v) => `${v}${ySuffix}`,
           },
         },
+        ...(y1 ? {
+          y1: {
+            position: y1.position || "right",
+            min: 0,
+            grid: { display: false },
+            ticks: {
+              callback: (v) => `${v}${y1.suffix || ""}`,
+            },
+          },
+        } : {}),
       },
     };
   },
@@ -885,6 +983,16 @@ const Sundial = {
     if (v < 8)    return "#ff9800";
     if (v < 11)   return "#f44336";
     return "#9c27b0";
+  },
+
+  aqiColor(v) {
+    if (v == null) return "#5c6788";
+    if (v <= 50)   return "#4caf50";  // Good
+    if (v <= 100)  return "#f0d94e";  // Moderate
+    if (v <= 150)  return "#ff9800";  // Unhealthy for sensitive
+    if (v <= 200)  return "#f44336";  // Unhealthy
+    if (v <= 300)  return "#9c27b0";  // Very unhealthy
+    return "#7e0023";                 // Hazardous
   },
 
   /* ==============================================
@@ -928,6 +1036,20 @@ const Sundial = {
   /* ==============================================
      Pure helpers
      ============================================== */
+
+  dailyMax(dailyDates, hourlyTimes, hourlyVals) {
+    if (!hourlyTimes || !hourlyVals) return dailyDates.map(() => null);
+
+    return dailyDates.map((date) => {
+      let max = null;
+      for (let i = 0; i < hourlyTimes.length; i++) {
+        if (hourlyTimes[i].startsWith(date) && hourlyVals[i] != null) {
+          if (max === null || hourlyVals[i] > max) max = hourlyVals[i];
+        }
+      }
+      return max;
+    });
+  },
 
   dailyAverages(dailyDates, hourlyTimes, hourlyVals) {
     if (!hourlyTimes || !hourlyVals) return dailyDates.map(() => null);

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0f1729">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="description" content="Historical weather data at your fingertips">
+  <meta name="description" content="Weather data at your fingertips — forecast and history">
   <title>Sundial</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
@@ -16,7 +16,7 @@
   <header>
     <h1>☀️ Sundial</h1>
     <nav class="page-nav">
-      <a href="index.html" class="active">History</a>
+      <a href="index.html" class="active">Weather</a>
       <a href="radar.html">Radar</a>
     </nav>
   </header>
@@ -48,9 +48,10 @@
     <section id="location-info" class="hidden">
       <h2 id="location-name"></h2>
       <div class="range-pills">
-        <button class="pill active" data-days="7">7 days</button>
-        <button class="pill" data-days="14">14 days</button>
-        <button class="pill" data-days="30">30 days</button>
+        <button class="pill active" data-days="forecast14">Next 14d</button>
+        <button class="pill" data-days="7">Past 7d</button>
+        <button class="pill" data-days="30">Past 30d</button>
+        <button class="pill" data-days="365">Past Year</button>
         <button class="pill" data-days="custom">Custom</button>
       </div>
       <div id="custom-range" class="hidden">
@@ -103,6 +104,10 @@
       <div class="chart-container chart-tall">
         <h3>Temperature</h3>
         <canvas id="chart-temp"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Air Quality (US AQI)</h3>
+        <canvas id="chart-aqi"></canvas>
       </div>
       <div class="chart-container">
         <h3>UV Index</h3>
