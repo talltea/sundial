@@ -1056,7 +1056,7 @@ const Sundial = {
     try {
       const url =
         `${this.FORECAST_URL}?latitude=${location.lat}&longitude=${location.lon}` +
-        `&hourly=temperature_2m,weather_code,precipitation_probability` +
+        `&hourly=temperature_2m,weather_code,precipitation_probability,is_day` +
         `&forecast_hours=24&past_hours=1` +
         `&${this.UNIT_PARAMS}&timezone=auto`;
       const data = await this.fetchJSON(url);
@@ -1092,12 +1092,13 @@ const Sundial = {
       const temp = h.temperature_2m?.[i];
       const code = h.weather_code?.[i];
       const pop = h.precipitation_probability?.[i];
+      const isDay = h.is_day?.[i] !== 0;
       const nowClass = i === nowIdx ? " hc-now" : "";
 
       html +=
         `<div class="hour-cell${nowClass}">` +
           `<span class="hc-time">${label}</span>` +
-          `<span class="hc-icon">${this.weatherCodeEmoji(code)}</span>` +
+          `<span class="hc-icon">${this.weatherCodeEmoji(code, isDay)}</span>` +
           `<span class="hc-temp">${temp != null ? Math.round(temp) + "\u00b0" : "\u2014"}</span>` +
           `<span class="hc-pop">${pop != null && pop > 0 ? pop + "%" : ""}</span>` +
         `</div>`;
@@ -1108,10 +1109,12 @@ const Sundial = {
   },
 
   // WMO weather codes → emoji. See https://open-meteo.com/en/docs
-  weatherCodeEmoji(code) {
+  weatherCodeEmoji(code, isDay = true) {
     if (code == null) return "\u2014";
-    if (code === 0) return "\u2600\ufe0f";           // clear
-    if (code === 1 || code === 2) return "\u26c5";    // mainly clear / partly cloudy
+    if (code === 0) return isDay ? "\u2600\ufe0f" : "\ud83c\udf19"; // clear sun / moon
+    if (code === 1 || code === 2) {
+      return isDay ? "\u26c5" : "\u2601\ufe0f";       // partly cloudy / night clouds
+    }
     if (code === 3) return "\u2601\ufe0f";            // overcast
     if (code === 45 || code === 48) return "\ud83c\udf2b\ufe0f"; // fog
     if (code >= 51 && code <= 57) return "\ud83c\udf26\ufe0f";   // drizzle
