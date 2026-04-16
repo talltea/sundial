@@ -28,6 +28,5 @@ There are no tests, no linter, and no CI configured.
 - **CSS**: Single file (`css/style.css`) using CSS custom properties defined in `:root`. Dark theme only.
 
 ## TODO
-- moon rise/set times
 - for tides, have a horizontal rule so you can read the current height off the left
 - Some info on stars / planets in the sky?

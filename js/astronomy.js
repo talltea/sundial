@@ -308,11 +308,32 @@ const Astro = {
         `</div>`;
     }
 
+    const { rise, set } = this.moonTimes(
+      this.location.lat,
+      this.location.lon,
+      rangeData.utc_offset_seconds
+    );
+    const tz = rangeData.timezone;
+    const fmtTime = (d) => {
+      if (!d) return "\u2014";
+      return d.toLocaleTimeString("en-US", {
+        hour: "numeric", minute: "2-digit", timeZone: tz,
+      });
+    };
+
     this.el.moonDetails.innerHTML =
       `<div class="moon-hero">` +
         `<span class="moon-icon">${emoji}</span>` +
         `<span class="moon-phase-name">${name}</span>` +
         `<span class="moon-illumination">${illum}% illuminated</span>` +
+      `</div>` +
+      `<div class="astro-row">` +
+        `<span class="label">Moonrise</span>` +
+        `<span class="value">${fmtTime(rise)}</span>` +
+      `</div>` +
+      `<div class="astro-row">` +
+        `<span class="label">Moonset</span>` +
+        `<span class="value">${fmtTime(set)}</span>` +
       `</div>` +
       `<div class="moon-calendar">${calendar}</div>`;
   },
@@ -630,6 +651,95 @@ const Astro = {
     if (phase < 0.8125)  return { name: "Last Quarter",    emoji: "\uD83C\uDF17" };
     if (phase < 0.9375)  return { name: "Waning Crescent", emoji: "\uD83C\uDF18" };
     return { name: "New Moon", emoji: "\uD83C\uDF11" };
+  },
+
+  // Moon rise/set for "today" at the site, in the site's local date.
+  // Returns { rise, set } as Date objects (UTC instants), either may be null
+  // when the moon does not rise or set during the 24-hour local day.
+  // Ephemeris: Meeus low-precision; root finding: 2-hour quadratic scan
+  // (approach from SunCalc / stargazing.net).
+  moonTimes(siteLat, siteLon, utcOffsetSec) {
+    const rad = Math.PI / 180;
+    const obliquity = 23.4397 * rad;
+
+    const moonCoords = (d) => {
+      const Lp = rad * (218.316 + 13.176396 * d);
+      const M  = rad * (134.963 + 13.064993 * d);
+      const F  = rad * (93.272  + 13.229350 * d);
+      const eclLon = Lp + rad * 6.289 * Math.sin(M);
+      const eclLat = rad * 5.128 * Math.sin(F);
+      const ra = Math.atan2(
+        Math.sin(eclLon) * Math.cos(obliquity) -
+          Math.tan(eclLat) * Math.sin(obliquity),
+        Math.cos(eclLon)
+      );
+      const dec = Math.asin(
+        Math.sin(eclLat) * Math.cos(obliquity) +
+          Math.cos(eclLat) * Math.sin(obliquity) * Math.sin(eclLon)
+      );
+      return { ra, dec };
+    };
+
+    const phi = rad * siteLat;
+    const lw  = rad * -siteLon;
+
+    const altitude = (date) => {
+      // Days since J2000.0 (2451545.0) using Unix-epoch → Julian Day offset.
+      const d = date.valueOf() / 86400000 - 10957.5;
+      const { ra, dec } = moonCoords(d);
+      const H = rad * (280.16 + 360.9856235 * d) - lw - ra;
+      return Math.asin(
+        Math.sin(phi) * Math.sin(dec) +
+          Math.cos(phi) * Math.cos(dec) * Math.cos(H)
+      );
+    };
+
+    const offsetMs = utcOffsetSec * 1000;
+    // Local midnight at the site, expressed as a UTC timestamp.
+    const startMs =
+      Math.floor((Date.now() + offsetMs) / 86400000) * 86400000 - offsetMs;
+
+    const hc = 0.133 * rad; // horizon correction (parallax - refraction - semidiameter)
+    let h0 = altitude(new Date(startMs)) - hc;
+    let rise, set, ye;
+
+    for (let i = 1; i <= 24; i += 2) {
+      const h1 = altitude(new Date(startMs + i * 3600000)) - hc;
+      const h2 = altitude(new Date(startMs + (i + 1) * 3600000)) - hc;
+
+      const a = (h0 + h2) / 2 - h1;
+      const b = (h2 - h0) / 2;
+      const xe = -b / (2 * a);
+      ye = (a * xe + b) * xe + h1;
+      const disc = b * b - 4 * a * h1;
+      let roots = 0;
+      let x1, x2;
+
+      if (disc >= 0) {
+        const dx = Math.sqrt(disc) / (Math.abs(a) * 2);
+        x1 = xe - dx;
+        x2 = xe + dx;
+        if (Math.abs(x1) <= 1) roots++;
+        if (Math.abs(x2) <= 1) roots++;
+        if (x1 < -1) x1 = x2;
+      }
+
+      if (roots === 1) {
+        if (h0 < 0) rise = i + x1;
+        else       set  = i + x1;
+      } else if (roots === 2) {
+        rise = i + (ye < 0 ? x2 : x1);
+        set  = i + (ye < 0 ? x1 : x2);
+      }
+
+      if (rise != null && set != null) break;
+      h0 = h2;
+    }
+
+    return {
+      rise: rise != null ? new Date(startMs + rise * 3600000) : null,
+      set:  set  != null ? new Date(startMs + set  * 3600000) : null,
+    };
   },
 
   /* ==============================================
